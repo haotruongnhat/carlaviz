@@ -17,6 +17,8 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/unordered_map.hpp>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #include <mutex>
 #include <thread>
 #include <unordered_set>
@@ -41,6 +43,7 @@ class FrontendClient {
   void StartRead();
   bool is_metadata_sent_ = false;
   bool is_map_string_sent_ = false;
+  std::string role_name_ = "ego_vehicle";
   std::function<void(const std::unordered_map<std::string, bool>&)> stream_settings_callback_{};
   boost::shared_ptr<
       boost::beast::websocket::stream<boost::asio::ip::tcp::socket>>

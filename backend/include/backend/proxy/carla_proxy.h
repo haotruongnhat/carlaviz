@@ -47,6 +47,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/unordered_set.hpp>
+#include <boost/format.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -65,6 +66,54 @@
 #include <vector>
 
 namespace carlaviz {
+
+class EgoActorStatus {
+public:
+  EgoActorStatus() = default;
+  EgoActorStatus(std::string role_name, 
+                boost::shared_ptr<carla::client::Vehicle> ego_ptr = nullptr)
+    : role_name_(role_name), ego_ptr_(ego_ptr) {
+
+    carla::geom::Location location = ego_ptr->GetLocation(); 
+    carla::geom::Rotation orientation = ego_ptr->GetTransform().rotation; 
+    carla::geom::Vector3D velocity = ego_ptr->GetVelocity(); 
+    carla::geom::Vector3D acceleration = ego_ptr->GetAcceleration();
+
+    ego_position_.set<0>(location.x);
+    ego_position_.set<1>(-location.y);
+    ego_position_.set<2>(location.z);
+    ego_orientation_.set<0>(orientation.roll / 180.0 * M_PI);
+    ego_orientation_.set<1>(-orientation.pitch / 180.0 * M_PI);
+    ego_orientation_.set<2>(-(orientation.yaw) / 180.0 * M_PI);
+
+    display_velocity_ = carlaviz::utils::Utils::ComputeSpeed(velocity);
+    display_acceleration_ = carlaviz::utils::Utils::ComputeSpeed(acceleration);
+
+    role_name_prefix_slash_ = std::string("/") + role_name_;
+    ego_id_ = ego_ptr_->GetId();
+
+    auto control_state = ego_ptr_->GetControl();
+    display_throttle_ = control_state.throttle;
+    display_brake_ = control_state.brake;
+    display_steering_ = control_state.steer;
+  }
+
+  std::string role_name_;
+  std::string role_name_prefix_slash_;
+  point_3d_t ego_position_ = point_3d_t(0., 0., 0.);
+  point_3d_t ego_orientation_ = point_3d_t(0., 0., 0.);
+
+  boost::shared_ptr<carla::client::Vehicle> ego_ptr_;
+  std::vector<std::vector<double>> ego_vector_;
+  uint32_t ego_id_;
+
+  double display_velocity_ = 0.;
+  double display_acceleration_ = 0.;
+
+  float display_throttle_ = 0.;
+  float display_brake_ = 0.;
+  float display_steering_ = 0.;
+};
 
 class CarlaProxy {
  public:
@@ -145,6 +194,7 @@ class CarlaProxy {
 
   std::unordered_map<uint32_t, boost::shared_ptr<carla::client::Actor>> actors_;
   boost::shared_ptr<carla::client::Actor> ego_actor_{nullptr};
+
   bool is_previous_ego_present_{false};
 
   std::shared_ptr<xviz::Metadata> metadata_ptr_{nullptr};

@@ -1,0 +1,30 @@
+FROM ubuntu:18.04
+
+COPY . /home/carla/carlaviz
+
+### Back-end tools
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update && \
+    apt-get install -y build-essential rsync git gcc-7 cmake libpng-dev libtiff5-dev libjpeg-dev tzdata sed curl wget unzip autoconf libtool
+
+# install protobuf for xviz
+WORKDIR /home/carla/protoc
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protobuf-cpp-3.11.2.tar.gz && \
+    tar xvzf protobuf-cpp-3.11.2.tar.gz && \
+    cd protobuf-3.11.2 && \
+    ./configure && \
+    make -j12 && \
+    make install && \
+    ldconfig
+
+### Front-end tools
+RUN apt update && \
+    curl -sL https://deb.nodesource.com/setup_12.x | bash - && \
+    apt-get install -y nodejs
+
+RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
+    apt-get update && apt-get install -y yarn
+
+WORKDIR /home/carla/carlaviz
+RUN bash ./setup/setup.sh
