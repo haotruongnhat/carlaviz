@@ -1,8 +1,38 @@
 
 # CarlaViz [![Build Status](https://travis-ci.com/wx9698/carlaviz.svg?branch=master)](https://travis-ci.com/wx9698/carlaviz)
+
 Visualize carla in the web browser.
 
 <img src="https://github.com/wx9698/carlaviz/raw/master/docs/images/demo1.png"></img>
+
+## Dev version
+- Adding support for two ego vechiles, naming "hero1" and "hero2".
+- Access ego streaming via `localhost:8080/?role_name=[ego_name]`.
+- Adding throttle, brake, and steering streams and meter widgets.
+
+## Setup Instructions and Version Support
+- Ubuntu and Carla 0.9.11
+
+- Image source: nhathao95/carlaviz:dev
+
+- Backend:
+
+        cd  /home/carla/carlaviz/backend/build
+        make backend -j8
+        /home/carla/carlaviz/backend/bin/backend
+
+- Frontend:
+
+        cd /home/carla/carlaviz/frontend
+        yarn start
+
+#### TODOS
+- [ ] Add support for changing map.
+- [ ] Support more ego vehicles and configurable code.
+
+---
+
+## Legacy README
 
 ## Version Supported
 | Platform | Supported Carla Version | Docker/Source |
