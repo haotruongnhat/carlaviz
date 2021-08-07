@@ -440,7 +440,8 @@ xviz::XVIZMetadataBuilder CarlaProxy::GetBaseMetadataBuilder() {
           .Coordinate(StreamMetadata::IDENTITY)
         .UI(GetUIs({}, {}, {}, {}));
 
-  // Add more ego vehicles data
+  // Add more ego vehicles data 
+  // TODO: Should load from config or args
   std::vector<std::string> role_names = {"hero1", "hero2"};
   std::vector<std::string> role_colors = {"#ff8000", "#40E0D0"};
 
