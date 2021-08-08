@@ -30,6 +30,9 @@ void FrontendClient::StartRead() {
       auto read_data = boost::beast::buffers_to_string(buffer.data());
       try {
         Json setting_json = Json::parse(read_data);
+
+        // role_name_ = setting_json["role_name"];
+        // setting_json.erase("role_name");
         stream_settings_callback_(setting_json.get<std::unordered_map<std::string, bool>>());
       } catch (const std::exception& e) {
         CARLAVIZ_LOG_WARNING("When paring %s, get error: %s", read_data.c_str(),
@@ -75,6 +78,7 @@ FrontendProxy::FrontendProxy(uint16_t frontend_listen_port)
     : frontend_listen_port_(frontend_listen_port) {}
 
 void FrontendProxy::UpdateMetadata(const std::string& updated_metadata) {
+  // CARLAVIZ_LOG_INFO("%s", updated_metadata.c_str());
   update_metadata_lock_.lock();
   updated_metadata_without_map_ = updated_metadata;
   updated_metadata_with_map_ = updated_metadata;
@@ -105,6 +109,9 @@ void FrontendProxy::SetStreamSettingsCallback(
 }
 
 void FrontendProxy::SendToAllClients(std::string&& message) {
+  // Try to the replease the messsage with 
+  // CARLAVIZ_LOG_INFO("%s", message.c_str());
+
   boost::beast::multi_buffer buffer;
   boost::beast::ostream(buffer) << std::move(message);
 

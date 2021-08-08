@@ -52,7 +52,7 @@ void Backend::Run() {
         xviz::XVIZGLBWriter writer;
         writer.WriteMessage(output, xviz.GetMessage());
         // auto write_end = std::chrono::high_resolution_clock::now();
-
+      
         frontend_proxy_->SendToAllClients(std::move(output));
         // auto send_end = std::chrono::high_resolution_clock::now();
         /*

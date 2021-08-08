@@ -339,7 +339,7 @@ void CarlaProxy::UpdateMetadataBuilder() {
   }
   if (ego_actor_ != nullptr) {
     base_metadata_builder
-      .UI(GetUIs(camera_streams_vec,  {"/vehicle/acceleration"}, {"/vehicle/velocity"}, table_streams));
+      .UI(GetUIs(camera_streams_vec,  {"/hero1/acceleration"}, {"/hero1/velocity"}, table_streams));
   } else {
     base_metadata_builder
       .UI(GetUIs(camera_streams_vec,  {}, {}, table_streams));
@@ -362,7 +362,7 @@ xviz::XVIZMetadataBuilder CarlaProxy::GetBaseMetadataBuilder() {
           .StreamStyle(
             "{"
               "\"extruded\": true,"
-              "\"fill_color\": \"#40E0D0\","
+              "\"fill_color\": \"#FA8072\","
               "\"height\": 2.0"
             "}")
         .Stream("/object/walkers")
@@ -375,14 +375,6 @@ xviz::XVIZMetadataBuilder CarlaProxy::GetBaseMetadataBuilder() {
               "\"fill_color\": \"#FF69B4\","
               "\"height\": 1.5"
             "}")
-        .Stream("/vehicle/acceleration")
-          .Category(StreamMetadata::TIME_SERIES)
-          .Unit("m/s^2")
-          .Type(StreamMetadata::FLOAT)
-        .Stream("/vehicle/velocity")
-          .Category(StreamMetadata::TIME_SERIES)
-          .Unit("m/s")
-          .Type(StreamMetadata::FLOAT)
         .Stream("/traffic/stop_signs")
           .Category(xviz::StreamMetadata::PRIMITIVE)
           .Type(xviz::StreamMetadata::POLYLINE)
@@ -447,6 +439,54 @@ xviz::XVIZMetadataBuilder CarlaProxy::GetBaseMetadataBuilder() {
           .Type(StreamMetadata::TEXT)
           .Coordinate(StreamMetadata::IDENTITY)
         .UI(GetUIs({}, {}, {}, {}));
+
+  // Add more ego vehicles data 
+  // TODO: Should load from config or args
+  std::vector<std::string> role_names = {"hero1", "hero2"};
+  std::vector<std::string> role_colors = {"#ff8000", "#40E0D0"};
+
+  // Write hero polygon stream
+  xviz_metadata_builder.Stream("/object/heros")
+          .Category(StreamMetadata::PRIMITIVE)
+          .Type(StreamMetadata::POLYGON)
+          .Coordinate(StreamMetadata::IDENTITY)
+          .StreamStyle(
+            "{"
+              "\"extruded\": true,"
+              "\"height\": 2.0"
+            "}");
+
+  boost::format fill_color_fmt("{\"fill_color\": \"%s\"}");
+  for(uint8_t role_id; role_id < role_names.size(); role_id++) {
+    xviz_metadata_builder.StyleClass(
+      role_names[role_id],
+      (fill_color_fmt % role_colors[role_id]).str());
+  }
+
+  boost::format stream_fmt("/%s/%s");
+  for(uint8_t role_id; role_id < role_names.size(); role_id++) {
+    xviz_metadata_builder.Stream((stream_fmt % role_names[role_id] % "acceleration").str())
+          .Category(StreamMetadata::TIME_SERIES)
+          .Unit("m/s^2")
+          .Type(StreamMetadata::FLOAT);
+    xviz_metadata_builder.Stream((stream_fmt % role_names[role_id] % "velocity").str())
+          .Category(StreamMetadata::TIME_SERIES)
+          .Unit("m/s")
+          .Type(StreamMetadata::FLOAT);     
+    xviz_metadata_builder.Stream((stream_fmt % role_names[role_id] % "throttle").str())
+          .Category(StreamMetadata::TIME_SERIES)
+          .Unit("%")
+          .Type(StreamMetadata::FLOAT);
+    xviz_metadata_builder.Stream((stream_fmt % role_names[role_id] % "brake").str())
+          .Category(StreamMetadata::TIME_SERIES)
+          .Unit("%")
+          .Type(StreamMetadata::FLOAT);
+    xviz_metadata_builder.Stream((stream_fmt % role_names[role_id] % "steering").str())
+          .Category(StreamMetadata::TIME_SERIES)
+          .Unit("%")
+          .Type(StreamMetadata::FLOAT);
+  }
+
   return xviz_metadata_builder;
 }
 
@@ -484,6 +524,8 @@ XVIZBuilder CarlaProxy::GetUpdateData(
   std::unordered_map<uint32_t, boost::shared_ptr<carla::client::Actor>>
       tmp_actors;
   std::unordered_set<uint32_t> tmp_real_sensors;
+  std::vector<EgoActorStatus> ego_actors_status;
+  std::unordered_map<std::string, boost::shared_ptr<carla::client::Vehicle>> ego_actors;
 
   bool is_ego_found = false;
 
@@ -580,9 +622,10 @@ XVIZBuilder CarlaProxy::GetUpdateData(
       continue;
     }
     for (const auto& attribute : actor_ptr->GetAttributes()) {
-      if (attribute.GetId() == "role_name" && (attribute.GetValue() == "ego" || attribute.GetValue() == "hero")) {
-        ego_actor_ = actor_ptr;
-        is_ego_found = true;
+      if (attribute.GetId() == "role_name" && (attribute.GetValue() == "ego" ||  attribute.GetValue().find(std::string("hero")) != std::string::npos)) {
+        // ego_actor_ = actor_ptr;
+        ego_actors.insert({attribute.GetValue(), boost::static_pointer_cast<carla::client::Vehicle>(actor_ptr)});
+        // is_ego_found = true;
         break;
       }
     }
@@ -712,8 +755,10 @@ XVIZBuilder CarlaProxy::GetUpdateData(
       UpdateMetadataBuilder();
       is_previous_ego_present_ = true;
     }
+
     auto location = ego_actor_->GetLocation();
     auto orientation = ego_actor_->GetTransform().rotation;
+
     ego_position.set<0>(location.x);
     ego_position.set<1>(-location.y);
     ego_position.set<2>(location.z);
@@ -723,7 +768,8 @@ XVIZBuilder CarlaProxy::GetUpdateData(
 
     display_velocity = Utils::ComputeSpeed(ego_actor_->GetVelocity());
     display_acceleration = Utils::ComputeSpeed(ego_actor_->GetAcceleration());
-  } else {
+  } 
+  else {
     if (is_previous_ego_present_) {
       UpdateMetadataBuilder();
       is_previous_ego_present_ = false;
@@ -734,12 +780,63 @@ XVIZBuilder CarlaProxy::GetUpdateData(
     is_need_update_metadata_ = false;
     UpdateMetadata();
   }
-
   XVIZBuilder xviz_builder(metadata_ptr_);
   xviz_builder.UIPrimitive("/game/time")
     .Column("Game time/s", TreeTableColumn::DOUBLE, "second")
     .Column("Game frame", TreeTableColumn::INT32)
       .Row(0, {std::to_string(now_time), std::to_string(now_frame)});
+
+
+  for (std::pair<std::string, boost::shared_ptr<carla::client::Vehicle>> ego_actor : ego_actors) 
+  {
+    ego_actors_status.push_back(
+              EgoActorStatus(ego_actor.first, ego_actor.second)
+    );
+  }
+  boost::format stream_fmt("/%s/%s");
+  for(EgoActorStatus& ego_status: ego_actors_status) {
+    std::string key = (stream_fmt % ego_status.role_name_ % "acceleration").str();
+    if (IsStreamAllowTransmission(key)) {
+      xviz_builder.TimeSeries(key)
+        .Timestamp(now_time)
+        .Value(ego_status.display_acceleration_)
+        .Id("acceleration");
+    }
+
+    key = (stream_fmt % ego_status.role_name_ % "velocity").str();
+    if (IsStreamAllowTransmission(key)) {
+      xviz_builder.TimeSeries(key)
+        .Timestamp(now_time)
+        .Value(ego_status.display_velocity_)
+        .Id("velocity");
+    }
+
+    key = (stream_fmt % ego_status.role_name_ % "throttle").str();
+    if (IsStreamAllowTransmission(key)) {
+      xviz_builder.TimeSeries(key)
+        .Timestamp(now_time)
+        .Value(ego_status.display_throttle_)
+        .Id("throttle");
+    }
+    key = (stream_fmt % ego_status.role_name_ % "steering").str();
+    if (IsStreamAllowTransmission(key)) {
+      xviz_builder.TimeSeries(key)
+        .Timestamp(now_time)
+        .Value(ego_status.display_steering_)
+        .Id("steering");
+    }
+    key = (stream_fmt % ego_status.role_name_ % "brake").str();
+    if (IsStreamAllowTransmission(key)) {
+      xviz_builder.TimeSeries(key)
+        .Timestamp(now_time)
+        .Value(ego_status.display_brake_)
+        .Id("brake");
+    }
+
+
+    // set object vertices
+    AddVerticesToVector<carla::client::Actor>(ego_status.ego_vector_, boost::static_pointer_cast<carla::client::Actor>(ego_status.ego_ptr_));
+  }
 
   xviz_builder.Pose("/vehicle_pose")
     .MapOrigin(0, 0, 0)
@@ -747,19 +844,19 @@ XVIZBuilder CarlaProxy::GetUpdateData(
     .Position(ego_position.get<0>(), ego_position.get<1>(), ego_position.get<2>())
     .Timestamp(now_time);
 
-  if (IsStreamAllowTransmission("/vehicle/acceleration")) {
-    xviz_builder.TimeSeries("/vehicle/acceleration")
-      .Timestamp(now_time)
-      .Value(display_acceleration)
-      .Id("acceleration");
-  }
+  // if (IsStreamAllowTransmission("/vehicle/acceleration")) {
+  //   xviz_builder.TimeSeries("/vehicle/acceleration")
+  //     .Timestamp(now_time)
+  //     .Value(display_acceleration)
+  //     .Id("acceleration");
+  // }
 
-  if (IsStreamAllowTransmission("/vehicle/velocity")) {
-    xviz_builder.TimeSeries("/vehicle/velocity")
-      .Timestamp(now_time)
-      .Value(display_velocity)
-      .Id("velocity");
-  }
+  // if (IsStreamAllowTransmission("/vehicle/velocity")) {
+  //   xviz_builder.TimeSeries("/vehicle/velocity")
+  //     .Timestamp(now_time)
+  //     .Value(display_velocity)
+  //     .Id("velocity");
+  // }
 
 
   std::vector<std::vector<double>> vehicle_vector;
@@ -781,9 +878,20 @@ XVIZBuilder CarlaProxy::GetUpdateData(
   // }
 
   for (const auto& actor_pair : actors_) {
+    
+    bool is_it_ego_vehicle = false;
+
     if (ego_actor_ != nullptr && ego_actor_->GetId() == actor_pair.first) {
-      continue;
+      is_it_ego_vehicle = true;
     }
+
+    for(EgoActorStatus& ego_status: ego_actors_status) {
+      is_it_ego_vehicle = (ego_status.ego_id_ == actor_pair.first);
+      if (is_it_ego_vehicle) break;
+    }
+
+    if (is_it_ego_vehicle) continue;
+
     auto actor_ptr = actor_pair.second;
 
     if (Utils::IsStartWith(actor_ptr->GetTypeId(), "vehicle")) {
@@ -824,7 +932,16 @@ XVIZBuilder CarlaProxy::GetUpdateData(
         .Classes({"vehicle"});
     }
   }
-  
+
+  if (IsStreamAllowTransmission("/object/heros")) {
+    for(EgoActorStatus& ego_status: ego_actors_status) {
+      xviz_builder.Primitive("/object/heros")
+        .Polygon(std::move(ego_status.ego_vector_[0]))
+        .ObjectId(std::to_string(ego_status.ego_id_))
+        .Classes({ego_status.role_name_});
+    }
+  }
+
   if (IsStreamAllowTransmission("/object/walkers")) {
     for (auto i = 0; i < walker_vector.size(); i++) {
       xviz_builder.Primitive("/object/walkers")

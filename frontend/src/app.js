@@ -44,6 +44,10 @@ import "./index.css";
 const backendHostname = (__BACKEND_HOST__ === "" ? document.location.hostname : __BACKEND_HOST__)
 const backendPort = (__BACKEND_PORT__ === "" ? 8081 : __BACKEND_PORT__)
 
+const params = new URL(window.location.href).searchParams;
+const roleParams = params.get('role_name')
+const roleName = (roleParams == undefined) ? "ego_vehicle" : roleParams;
+
 const carlaLog = new XVIZLiveLoader({
   logGuid: "mock",
   bufferLength: 10,
@@ -121,6 +125,7 @@ class CarlaViz extends PureComponent {
   _onStreamSettingChange = changedSettings => {
     const { log } = this.state;
     if (log && log.isOpen()) {
+      changedSettings["role_name"] = roleName;
       log.socket.send(JSON.stringify(changedSettings));
     } else {
       console.log("socket is closed");
@@ -191,7 +196,7 @@ class CarlaViz extends PureComponent {
               <div id="hud">
                 <MeterWidget
                   log={log}
-                  streamName="/vehicle/acceleration"
+                  streamName={"/".concat(roleName).concat("/acceleration")}
                   label="Acceleration"
                   min={-10}
                   max={10}
@@ -199,21 +204,45 @@ class CarlaViz extends PureComponent {
                 <hr />
                 <MeterWidget
                   log={log}
-                  streamName="/vehicle/velocity"
+                  streamName={"/".concat(roleName).concat("/velocity")}
                   label="Speed"
                   getWarning={x => (x > 6 ? "FAST" : "")}
                   min={0}
                   max={20}
                 />
+                <MeterWidget
+                  log={log}
+                  streamName={"/".concat(roleName).concat("/throttle")}
+                  label="Throttle"
+                  min={0.0}
+                  max={1.0}
+                />
+                <hr />
+                <MeterWidget
+                  log={log}
+                  streamName={"/".concat(roleName).concat("/steering")}
+                  label="Steer"
+                  min={-1.0}
+                  max={1.0}
+                />
+                <hr />
+                <MeterWidget
+                  log={log}
+                  streamName={"/".concat(roleName).concat("/brake")}
+                  label="Brake"
+                  min={0}
+                  max={1.0}
+                />
+
               </div>
             ) : (
               <div></div>
             )}
           </div>
         </div>
-        <div id="author-info">
+        {/* <div id="author-info">
           <p>Author: Minjun Xu</p>
-        </div>
+        </div> */}
       </div>
     );
   }
