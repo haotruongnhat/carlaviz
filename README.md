@@ -5,26 +5,39 @@ Visualize carla in the web browser.
 
 <img src="https://github.com/wx9698/carlaviz/raw/master/docs/images/demo1.png"></img>
 
-## Dev version
+## Upgraded Version
 - Adding support for two ego vechiles, naming "hero1" and "hero2".
 - Access ego streaming via `localhost:8080/?role_name=[ego_name]`.
 - Adding throttle, brake, and steering streams and meter widgets.
 
-## Setup Instructions and Version Support
+## Version Support
 - Ubuntu and Carla 0.9.11
 
-- Image source: nhathao95/carlaviz:dev
+## Setup Instructions
+### Dev Version
+- Descriptions: 
+        - Docker image containing source code with pre-built binary
+        - Modify code and re-build to test new functions
 
+- Image source: `nhathao95/carlaviz:dev`
 - Backend:
 
         cd  /home/carla/carlaviz/backend/build
         make backend -j8
         /home/carla/carlaviz/backend/bin/backend
-
 - Frontend:
 
         cd /home/carla/carlaviz/frontend
         yarn start
+
+### Production Version
+- Descriptions: 
+        - Docker image containing only binary to execute when you run docker container
+        
+- Image source: `nhathao95/carlaviz:prod`
+- Run docker container:
+
+        docker run -it -d --network="host" -e CARLAVIZ_BACKEND_HOST=localhost -e CARLA_SERVER_HOST=localhost -e CARLA_SERVER_PORT=2000 nhathao95/carlaviz:prod
 
 #### TODOS
 - [ ] Add support for changing map.
